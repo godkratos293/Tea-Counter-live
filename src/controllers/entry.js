@@ -374,7 +374,7 @@ const exportMonthlyPDF = async (req, res) => {
         20,
       );
 
-      y += rowHeight + 5;
+      y += rowHeight + 3;
 
       // PAGE BREAK
       if (y > pageHeight - 80) {
