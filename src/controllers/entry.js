@@ -319,7 +319,9 @@ const exportMonthlyPDF = async (req, res) => {
       total: 435,
     };
 
-    // TABLE HEADER
+    const ROWS_PER_PAGE = 20;
+    let rowCount = 0;
+
     const drawHeader = (yPos) => {
       doc.fillColor("#000000").font("Helvetica-Bold").fontSize(12);
 
@@ -343,18 +345,29 @@ const exportMonthlyPDF = async (req, res) => {
     drawHeader(tableTop);
 
     let y = tableTop + 25;
-    let rowCount = 0;
 
-    // TABLE ROWS WITH FIXED PAGINATION
+    const drawBottomLine = (yPos) => {
+      doc
+        .moveTo(30, yPos)
+        .lineTo(550, yPos)
+        .lineWidth(1)
+        .strokeColor("#000000")
+        .stroke();
+    };
+
+    // TABLE ROWS
     entries.forEach((e, index) => {
-      // NEW PAGE AFTER 20 ROWS
-      if (rowCount === 20) {
+      // PAGE FULL → draw line + new page
+      if (rowCount === ROWS_PER_PAGE) {
+        drawBottomLine(y); // ✅ bottom line before break
+
         doc.addPage();
         y = 50;
-        rowCount = 0;
 
         drawHeader(y);
         y += 25;
+
+        rowCount = 0;
       }
 
       const dateObj = new Date(e.date_time);
@@ -367,9 +380,12 @@ const exportMonthlyPDF = async (req, res) => {
         })
         .replace(/ /g, "-");
 
-      const formattedTime = e.time
-        ? e.time.split(":").slice(0, 2).join(":") + " " + e.time.split(" ")[1]
-        : "-";
+      const timeObj = new Date(e.createdAt);
+      const formattedTime = timeObj.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
 
       const cups = e.cup_count || 0;
       const price = e.price_per_cup || 0;
@@ -382,24 +398,16 @@ const exportMonthlyPDF = async (req, res) => {
       doc.text(String(cups), col.cups + 10, y, { width: 40 });
       doc.text(`${total}`, col.total + 25, y, { width: 60 });
 
-      y += 25; // fixed row height
+      y += 22;
       rowCount++;
     });
 
-    // TOTAL SECTION
-    y += 10;
-
-    doc
-      .save()
-      .strokeColor("#000000")
-      .lineWidth(1)
-      .moveTo(30, y)
-      .lineTo(550, y)
-      .stroke()
-      .restore();
+    // ✅ LAST PAGE BOTTOM LINE
+    drawBottomLine(y);
 
     y += 15;
 
+    // TOTAL ROW
     doc.font("Helvetica-Bold").fontSize(13);
 
     doc.text("Total", col.price + 20, y);
