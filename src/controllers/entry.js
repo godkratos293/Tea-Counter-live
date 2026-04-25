@@ -252,7 +252,6 @@ const exportMonthlyPDF = async (req, res) => {
       });
     }
 
-    // ✅ FIX 1: Use UTC-safe date range (avoid timezone shift)
     const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     const end = new Date(Date.UTC(year, month, 0, 23, 59, 59));
 
@@ -275,7 +274,7 @@ const exportMonthlyPDF = async (req, res) => {
 
     const monthName = new Date(year, month - 1).toLocaleString("en-IN", {
       month: "long",
-      timeZone: "Asia/Kolkata", // ✅ FIX
+      timeZone: "Asia/Kolkata",
     });
 
     const doc = new PDFDocument({ margin: 50 });
@@ -357,7 +356,6 @@ const exportMonthlyPDF = async (req, res) => {
         .stroke();
     };
 
-    // TABLE ROWS
     entries.forEach((e, index) => {
       if (rowCount === ROWS_PER_PAGE) {
         drawBottomLine(y);
@@ -370,7 +368,6 @@ const exportMonthlyPDF = async (req, res) => {
 
         rowCount = 0;
       }
-
       // ✅ FIX 2: Always format date in IST
       const dateObj = new Date(e.date_time);
 
@@ -379,18 +376,17 @@ const exportMonthlyPDF = async (req, res) => {
           day: "2-digit",
           month: "short",
           year: "numeric",
-          timeZone: "Asia/Kolkata", // ✅ FIX
+          timeZone: "Asia/Kolkata",
         })
         .replace(/ /g, "-");
 
-      // ✅ FIX 3: Time in IST (main issue)
       const timeObj = new Date(e.createdAt);
 
       const formattedTime = timeObj.toLocaleTimeString("en-IN", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,
-        timeZone: "Asia/Kolkata", // ✅ FIX (CRITICAL)
+        timeZone: "Asia/Kolkata",
       });
 
       const cups = e.cup_count || 0;
