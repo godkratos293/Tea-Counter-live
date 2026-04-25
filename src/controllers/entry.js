@@ -252,8 +252,9 @@ const exportMonthlyPDF = async (req, res) => {
       });
     }
 
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 0, 23, 59, 59, 999);
+    // ✅ FIX 1: Use UTC-safe date range (avoid timezone shift)
+    const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+    const end = new Date(Date.UTC(year, month, 0, 23, 59, 59));
 
     const entries = await TeaEntry.find({
       date_time: { $gte: start, $lte: end },
@@ -274,6 +275,7 @@ const exportMonthlyPDF = async (req, res) => {
 
     const monthName = new Date(year, month - 1).toLocaleString("en-IN", {
       month: "long",
+      timeZone: "Asia/Kolkata", // ✅ FIX
     });
 
     const doc = new PDFDocument({ margin: 50 });
@@ -357,9 +359,8 @@ const exportMonthlyPDF = async (req, res) => {
 
     // TABLE ROWS
     entries.forEach((e, index) => {
-      // PAGE FULL → draw line + new page
       if (rowCount === ROWS_PER_PAGE) {
-        drawBottomLine(y); // ✅ bottom line before break
+        drawBottomLine(y);
 
         doc.addPage();
         y = 50;
@@ -370,6 +371,7 @@ const exportMonthlyPDF = async (req, res) => {
         rowCount = 0;
       }
 
+      // ✅ FIX 2: Always format date in IST
       const dateObj = new Date(e.date_time);
 
       const formattedDate = dateObj
@@ -377,14 +379,18 @@ const exportMonthlyPDF = async (req, res) => {
           day: "2-digit",
           month: "short",
           year: "numeric",
+          timeZone: "Asia/Kolkata", // ✅ FIX
         })
         .replace(/ /g, "-");
 
+      // ✅ FIX 3: Time in IST (main issue)
       const timeObj = new Date(e.createdAt);
+
       const formattedTime = timeObj.toLocaleTimeString("en-IN", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,
+        timeZone: "Asia/Kolkata", // ✅ FIX (CRITICAL)
       });
 
       const cups = e.cup_count || 0;
@@ -402,12 +408,10 @@ const exportMonthlyPDF = async (req, res) => {
       rowCount++;
     });
 
-    // ✅ LAST PAGE BOTTOM LINE
     drawBottomLine(y);
 
     y += 15;
 
-    // TOTAL ROW
     doc.font("Helvetica-Bold").fontSize(13);
 
     doc.text("Total", col.price + 20, y);
