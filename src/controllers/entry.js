@@ -286,7 +286,7 @@ const exportMonthlyPDF = async (req, res) => {
 
     doc.pipe(res);
 
-    //  HEADER
+    // HEADER
     doc
       .fontSize(22)
       .fillColor("#000000")
@@ -308,7 +308,6 @@ const exportMonthlyPDF = async (req, res) => {
 
     doc.moveDown(2);
 
-    const pageHeight = doc.page.height;
     const tableTop = doc.y;
 
     const col = {
@@ -320,29 +319,44 @@ const exportMonthlyPDF = async (req, res) => {
       total: 435,
     };
 
-    //  TABLE HEADER
-    doc.fillColor("#000000").font("Helvetica-Bold").fontSize(12);
+    // TABLE HEADER
+    const drawHeader = (yPos) => {
+      doc.fillColor("#000000").font("Helvetica-Bold").fontSize(12);
 
-    doc.text("#", col.sr, tableTop);
-    doc.text("DATE", col.date, tableTop);
-    doc.text("TIME", col.time, tableTop);
-    doc.text("PER CUP", col.price, tableTop);
-    doc.text("CUPS", col.cups, tableTop);
-    doc.text("TOTAL", col.total + 15, tableTop);
+      doc.text("#", col.sr, yPos);
+      doc.text("DATE", col.date, yPos);
+      doc.text("TIME", col.time, yPos);
+      doc.text("PER CUP", col.price, yPos);
+      doc.text("CUPS", col.cups, yPos);
+      doc.text("TOTAL", col.total + 15, yPos);
 
-    doc
-      .moveTo(30, tableTop + 15)
-      .lineTo(550, tableTop + 15)
-      .lineWidth(1)
-      .strokeColor("#000000")
-      .stroke();
+      doc
+        .moveTo(30, yPos + 15)
+        .lineTo(550, yPos + 15)
+        .lineWidth(1)
+        .strokeColor("#000000")
+        .stroke();
 
-    doc.font("Helvetica").fillColor("black");
+      doc.font("Helvetica").fillColor("black");
+    };
+
+    drawHeader(tableTop);
 
     let y = tableTop + 25;
+    let rowCount = 0;
 
-    // TABLE ROWS
+    // TABLE ROWS WITH FIXED PAGINATION
     entries.forEach((e, index) => {
+      // NEW PAGE AFTER 20 ROWS
+      if (rowCount === 20) {
+        doc.addPage();
+        y = 50;
+        rowCount = 0;
+
+        drawHeader(y);
+        y += 25;
+      }
+
       const dateObj = new Date(e.date_time);
 
       const formattedDate = dateObj
@@ -368,39 +382,8 @@ const exportMonthlyPDF = async (req, res) => {
       doc.text(String(cups), col.cups + 10, y, { width: 40 });
       doc.text(`${total}`, col.total + 25, y, { width: 60 });
 
-      const rowHeight = Math.max(
-        doc.heightOfString(formattedDate, { width: 90 }),
-        doc.heightOfString(formattedTime, { width: 70 }),
-        20,
-      );
-
-      y += rowHeight + 3;
-
-      // PAGE BREAK
-      if (y > pageHeight - 80) {
-        doc.addPage();
-        y = 50;
-
-        doc.font("Helvetica-Bold").fillColor("#000000").fontSize(12);
-
-        doc.text("#", col.sr, y);
-        doc.text("DATE", col.date, y);
-        doc.text("TIME", col.time, y);
-        doc.text("PER CUP", col.price, y);
-        doc.text("CUPS", col.cups, y);
-        doc.text("TOTAL", col.total + 15, y);
-
-        doc
-          .moveTo(30, y + 15)
-          .lineTo(550, y + 15)
-          .lineWidth(1)
-          .strokeColor("#000000")
-          .stroke();
-
-        doc.font("Helvetica").fillColor("black");
-
-        y += 25;
-      }
+      y += 25; // fixed row height
+      rowCount++;
     });
 
     // TOTAL SECTION
@@ -415,8 +398,7 @@ const exportMonthlyPDF = async (req, res) => {
       .stroke()
       .restore();
 
-    y += 8;
-    y += 10;
+    y += 15;
 
     doc.font("Helvetica-Bold").fontSize(13);
 
