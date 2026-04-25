@@ -31,7 +31,14 @@ const addEntry = async (req, res) => {
     }
 
     const now = new Date();
-    const time = now.toLocaleTimeString("en-IN");
+
+    // ✅ FIX: Force IST timezone
+    const time = now.toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
 
     const priceDoc = await TeaPrice.findOne().sort({ effective_from: -1 });
 
@@ -47,7 +54,7 @@ const addEntry = async (req, res) => {
       total: cup_count * currentPrice,
       date_time: manualDate,
       date: manualDate,
-      time,
+      time, // ✅ now correct IST time
       month: manualDate.getMonth() + 1,
       year: manualDate.getFullYear(),
     });
@@ -63,7 +70,6 @@ const addEntry = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 //  TODAY
 const getTodayEntries = async (req, res) => {
   try {
