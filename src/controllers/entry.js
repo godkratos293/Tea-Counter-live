@@ -95,7 +95,9 @@ const getTodayEntries = async (req, res, next) => {
 
     const entries = await TeaEntry.find({
       date_time: { $gte: start, $lte: end },
-    }).sort({ date_time: 1 });
+    })
+      .select("-_id -__v -createdAt -updatedAt") // ✅ removed fields
+      .sort({ date_time: 1 });
 
     let totalCups = 0;
     let totalAmount = 0;
@@ -207,8 +209,16 @@ const getMonthlyEntries = async (req, res, next) => {
       totalCups += e.cup_count;
       totalAmount += amount;
 
+      const obj = e.toObject(); // ✅ convert to plain object
+
+      // ❌ remove unwanted fields
+      delete obj._id;
+      delete obj.__v;
+      delete obj.createdAt;
+      delete obj.updatedAt;
+
       return {
-        ...e._doc,
+        ...obj,
         price_per_cup: price,
         amount,
       };
@@ -255,7 +265,15 @@ const updateEntry = async (req, res, next) => {
 
     res.json({
       message: "Updated successfully",
-      data: updated,
+      data: {
+        date: updated.date,
+        time: updated.time,
+        price_per_cup: updated.price_per_cup,
+        cup_count: updated.cup_count,
+        total: updated.total,
+        month: updated.month,
+        year: updated.year,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
