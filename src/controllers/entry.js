@@ -184,16 +184,19 @@ const getMonthlySummary = async (req, res, next) => {
 // MONTHTLY ENTRIES
 const getMonthlyEntries = async (req, res, next) => {
   try {
-    let { month, year, page = 1, limit = 20 } = req.query;
-
-    if (!month || !year) {
-      return res.status(400).json({ message: "Month & year required" });
-    }
+    let { month, year, page = 1, limit = 10 } = req.query;
 
     month = parseInt(month);
     year = parseInt(year);
     page = parseInt(page);
     limit = parseInt(limit);
+
+    if (isNaN(month) || isNaN(year) || month < 1 || month > 12) {
+      return res.status(400).json({ message: "Invalid month/year" });
+    }
+
+    if (!page || page < 1) page = 1;
+    if (!limit || limit < 1 || limit > 100) limit = 10;
 
     const skip = (page - 1) * limit;
 

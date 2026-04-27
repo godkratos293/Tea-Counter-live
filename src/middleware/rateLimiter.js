@@ -1,8 +1,7 @@
 const rateLimit = require("express-rate-limit");
 
-// 🟢 General APIs
 const generalLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 min
+  windowMs: 1 * 60 * 1000,
   max: 100,
   message: {
     message: "Too many requests, please try again later.",
@@ -11,10 +10,9 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// 🔴 Heavy APIs (PDF/Excel)
 const heavyLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: 5, // stricter because PDF is heavy
+  max: 5,
   message: {
     message: "Too many export requests. Please wait.",
   },
