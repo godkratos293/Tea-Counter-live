@@ -196,10 +196,8 @@ const getMonthlyEntries = async (req, res, next) => {
     const priceDoc = await TeaPrice.findOne().sort({ effective_from: -1 });
     const currentPrice = priceDoc ? priceDoc.price_per_cup : 0;
 
-    // 👉 total count (for pagination info)
     const totalEntries = await TeaEntry.countDocuments({ month, year });
 
-    // 👉 paginated data
     const entries = await TeaEntry.find({ month, year })
       .sort({ date_time: 1 })
       .skip(skip)
@@ -234,13 +232,11 @@ const getMonthlyEntries = async (req, res, next) => {
       year,
       currentPrice,
 
-      // 👉 pagination info
       page,
       limit,
       totalEntries,
       totalPages: Math.ceil(totalEntries / limit),
 
-      // 👉 only current page totals
       pageTotalCups: totalCups,
       pageTotalAmount: totalAmount,
 
@@ -410,7 +406,7 @@ const exportMonthlyPDF = async (req, res, next) => {
     let rowCount = 0;
 
     const drawHeader = (yPos) => {
-      doc.fillColor("#000000").font("Helvetica-Bold").fontSize(12);
+      doc.fillColor("#000000").font("Helvetica-Bold").fontSize(14);
 
       doc.text("#", col.sr + 25, yPos);
       doc.text("DATE", col.date + 25, yPos);
@@ -485,7 +481,7 @@ const exportMonthlyPDF = async (req, res, next) => {
       doc.text(String(cups), col.cups + 35, y, { width: 40 });
       doc.text(`${total}`, col.total + 50, y, { width: 60 });
 
-      y += 22;
+      y += 23;
       rowCount++;
     });
 
