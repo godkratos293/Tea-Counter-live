@@ -180,7 +180,7 @@ const getMonthlySummary = async (req, res, next) => {
 //   MONTHTLY ENTRIES
 const getMonthlyEntries = async (req, res, next) => {
   try {
-    let { month, year } = req.query;
+    let { month, year, page = 1, limit = 20 } = req.query;
 
     if (!month || !year) {
       return res.status(400).json({ message: "Month & year required" });
@@ -188,13 +188,22 @@ const getMonthlyEntries = async (req, res, next) => {
 
     month = parseInt(month);
     year = parseInt(year);
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    const skip = (page - 1) * limit;
 
     const priceDoc = await TeaPrice.findOne().sort({ effective_from: -1 });
     const currentPrice = priceDoc ? priceDoc.price_per_cup : 0;
 
-    const entries = await TeaEntry.find({ month, year }).sort({
-      date_time: 1,
-    });
+    // 👉 total count (for pagination info)
+    const totalEntries = await TeaEntry.countDocuments({ month, year });
+
+    // 👉 paginated data
+    const entries = await TeaEntry.find({ month, year })
+      .sort({ date_time: 1 })
+      .skip(skip)
+      .limit(limit);
 
     let totalCups = 0;
     let totalAmount = 0;
@@ -223,10 +232,18 @@ const getMonthlyEntries = async (req, res, next) => {
     res.json({
       month,
       year,
-      totalCups,
       currentPrice,
-      totalAmount,
-      totalEntries: entries.length,
+
+      // 👉 pagination info
+      page,
+      limit,
+      totalEntries,
+      totalPages: Math.ceil(totalEntries / limit),
+
+      // 👉 only current page totals
+      pageTotalCups: totalCups,
+      pageTotalAmount: totalAmount,
+
       entries: updatedEntries,
     });
   } catch (error) {
