@@ -175,6 +175,7 @@ const getMonthlySummary = async (req, res, next) => {
       totalCups,
       currentPrice,
       totalAmount,
+      totalEntries: entries.length,
     });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
