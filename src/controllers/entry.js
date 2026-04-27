@@ -98,23 +98,22 @@ const getTodayEntries = async (req, res) => {
       totalAmount += (e.cup_count || 0) * price;
     });
 
-    //Custom date format (dd-Ap-yyyy)
     const day = String(now.getDate()).padStart(2, "0");
     const year = now.getFullYear();
 
     const customMonths = [
-      "Ja",
-      "Fe",
-      "Ma",
-      "Ap",
-      "My",
-      "Jn",
-      "Jl",
-      "Au",
-      "Se",
-      "Oc",
-      "No",
-      "De",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
 
     const month = customMonths[now.getMonth()];
