@@ -150,12 +150,15 @@ const getMonthlySummary = async (req, res, next) => {
     month = parseInt(month);
     year = parseInt(year);
 
+    const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+    const end = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+
     const priceDoc = await TeaPrice.findOne().sort({ effective_from: -1 });
     const currentPrice = priceDoc ? priceDoc.price_per_cup : 0;
 
-    const entries = await TeaEntry.find({ month, year }).sort({
-      date_time: 1,
-    });
+    const entries = await TeaEntry.find({
+      date_time: { $gte: start, $lte: end },
+    }).sort({ date_time: 1 });
 
     let totalCups = 0;
     let totalAmount = 0;
@@ -177,7 +180,8 @@ const getMonthlySummary = async (req, res, next) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-//   MONTHTLY ENTRIES
+
+// MONTHTLY ENTRIES
 const getMonthlyEntries = async (req, res, next) => {
   try {
     let { month, year, page = 1, limit = 20 } = req.query;
