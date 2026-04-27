@@ -6,9 +6,10 @@ const {
   getCurrentPrice,
   getPriceHistory,
 } = require("../controllers/priceController");
+const { generalLimiter } = require("../middleware/rateLimiter");
 
-router.post("/set", setPrice);
-router.get("/current", getCurrentPrice);
-router.get("/history", getPriceHistory);
+router.post("/set", generalLimiter, setPrice);
+router.get("/current", generalLimiter, getCurrentPrice);
+router.get("/history", generalLimiter, getPriceHistory);
 
 module.exports = router;

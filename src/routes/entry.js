@@ -12,14 +12,15 @@ const {
   exportMonthlyPDF,
   getMonthlySummary,
 } = require("../controllers/entry");
+const { generalLimiter, heavyLimiter } = require("../middleware/rateLimiter");
 
 // Routes
-router.post("/add", addEntry);
-router.get("/today", getTodayEntries);
+router.post("/add", generalLimiter, addEntry);
+router.get("/today", generalLimiter, getTodayEntries);
 router.get("/month", getMonthlyEntries);
-router.get("/monthsummary", getMonthlySummary);
-router.put("/update/:id", updateEntry);
-router.delete("/delete/:id", deleteEntry);
-router.get("/export/pdf", exportMonthlyPDF);
+router.get("/monthsummary", generalLimiter, getMonthlySummary);
+router.put("/update/:id", generalLimiter, updateEntry);
+router.delete("/delete/:id", generalLimiter, deleteEntry);
+router.get("/export/pdf", heavyLimiter, exportMonthlyPDF);
 
 module.exports = router;
