@@ -1,7 +1,7 @@
 const TeaEntry = require("../models/TeaEntry");
 const TeaPrice = require("../models/TeaPrice");
 const ExcelJS = require("exceljs");
-const PDFDocument = require("pdfkit-table");
+const PDFDocument = require("pdfkit");
 
 const getCurrentMonthYear = () => {
   const now = new Date();
@@ -177,10 +177,11 @@ const getMonthlySummary = async (req, res, next) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 //   MONTHTLY ENTRIES
 const getMonthlyEntries = async (req, res, next) => {
   try {
-    let { month, year } = req.query;
+    let { month, year, page = 1 } = req.query;
 
     if (!month || !year) {
       return res.status(400).json({ message: "Month & year required" });
@@ -188,14 +189,20 @@ const getMonthlyEntries = async (req, res, next) => {
 
     month = parseInt(month);
     year = parseInt(year);
+    page = parseInt(page) || 1;
 
-    // latest fallback price
+    const limit = 10;
+    const skip = (page - 1) * limit;
+
     const priceDoc = await TeaPrice.findOne().sort({ effective_from: -1 });
     const currentPrice = priceDoc ? priceDoc.price_per_cup : 0;
 
-    const entries = await TeaEntry.find({ month, year }).sort({
-      date_time: 1,
-    });
+    const totalEntries = await TeaEntry.countDocuments({ month, year });
+
+    const entries = await TeaEntry.find({ month, year })
+      .sort({ date_time: 1 })
+      .skip(skip)
+      .limit(limit);
 
     let totalCups = 0;
     let totalAmount = 0;
@@ -207,20 +214,29 @@ const getMonthlyEntries = async (req, res, next) => {
       totalCups += e.cup_count;
       totalAmount += amount;
 
-      return {
+      const obj = {
         ...e._doc,
+        id: e._id,
         price_per_cup: price,
         amount,
       };
+
+      delete obj._id;
+      delete obj.__v;
+      delete obj.date_time;
+
+      return obj;
     });
 
     res.json({
       month,
       year,
+      currentPage: page,
+      totalPages: Math.ceil(totalEntries / limit),
+      totalEntries,
       totalCups,
       currentPrice,
       totalAmount,
-      totalEntries: entries.length,
       entries: updatedEntries,
     });
   } catch (error) {
@@ -389,12 +405,12 @@ const exportMonthlyPDF = async (req, res, next) => {
     const drawHeader = (yPos) => {
       doc.fillColor("#000000").font("Helvetica-Bold").fontSize(12);
 
-      doc.text("#", col.sr, yPos);
-      doc.text("DATE", col.date, yPos);
-      doc.text("TIME", col.time, yPos);
-      doc.text("PER CUP", col.price, yPos);
-      doc.text("CUPS", col.cups, yPos);
-      doc.text("TOTAL", col.total + 15, yPos);
+      doc.text("#", col.sr + 25, yPos);
+      doc.text("DATE", col.date + 25, yPos);
+      doc.text("TIME", col.time + 25, yPos);
+      doc.text("PER CUP", col.price + 25, yPos);
+      doc.text("CUPS", col.cups + 25, yPos);
+      doc.text("TOTAL", col.total + 40, yPos);
 
       doc
         .moveTo(30, yPos + 15)
@@ -421,8 +437,6 @@ const exportMonthlyPDF = async (req, res, next) => {
 
     entries.forEach((e, index) => {
       if (rowCount === ROWS_PER_PAGE) {
-        drawBottomLine(y);
-
         doc.addPage();
         y = 50;
 
@@ -431,7 +445,6 @@ const exportMonthlyPDF = async (req, res, next) => {
 
         rowCount = 0;
       }
-      // ✅ FIX 2: Always format date in IST
       const dateObj = new Date(e.date_time);
 
       const formattedDate = dateObj
@@ -456,12 +469,12 @@ const exportMonthlyPDF = async (req, res, next) => {
       const price = e.price_per_cup || 0;
       const total = cups * price;
 
-      doc.text(String(index + 1), col.sr, y, { width: 30 });
-      doc.text(formattedDate, col.date - 20, y, { width: 90 });
-      doc.text(formattedTime, col.time - 5, y, { width: 70 });
-      doc.text(`${price}`, col.price + 20, y, { width: 50 });
-      doc.text(String(cups), col.cups + 10, y, { width: 40 });
-      doc.text(`${total}`, col.total + 25, y, { width: 60 });
+      doc.text(String(index + 1), col.sr + 25, y, { width: 30 });
+      doc.text(formattedDate, col.date + 5, y, { width: 90 });
+      doc.text(formattedTime, col.time + 20, y, { width: 70 });
+      doc.text(`${price}`, col.price + 45, y, { width: 50 });
+      doc.text(String(cups), col.cups + 35, y, { width: 40 });
+      doc.text(`${total}`, col.total + 50, y, { width: 60 });
 
       y += 22;
       rowCount++;
@@ -473,9 +486,9 @@ const exportMonthlyPDF = async (req, res, next) => {
 
     doc.font("Helvetica-Bold").fontSize(13);
 
-    doc.text("Total", col.price + 20, y);
-    doc.text(String(totalCups), col.cups + 10, y);
-    doc.text(`${totalAmount}`, col.total + 25, y);
+    doc.text("Total", col.price + 45, y);
+    doc.text(String(totalCups), col.cups + 35, y);
+    doc.text(`${totalAmount}`, col.total + 50, y);
 
     doc.end();
   } catch (error) {
