@@ -184,7 +184,7 @@ const getMonthlySummary = async (req, res, next) => {
 // MONTHTLY ENTRIES
 const getMonthlyEntries = async (req, res, next) => {
   try {
-    let { month, year, page = 1, limit = 20 } = req.query;
+    let { month, year, page = 1, limit = 10 } = req.query;
 
     if (!month || !year) {
       return res.status(400).json({ message: "Month & year required" });
