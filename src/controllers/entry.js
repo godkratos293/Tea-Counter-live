@@ -150,7 +150,6 @@ const getMonthlySummary = async (req, res, next) => {
     month = parseInt(month);
     year = parseInt(year);
 
-    // latest fallback price
     const priceDoc = await TeaPrice.findOne().sort({ effective_from: -1 });
     const currentPrice = priceDoc ? priceDoc.price_per_cup : 0;
 
@@ -162,7 +161,7 @@ const getMonthlySummary = async (req, res, next) => {
     let totalAmount = 0;
 
     entries.forEach((e) => {
-      const price = e.price_per_cup ?? currentPrice; // ✅ FIX
+      const price = e.price_per_cup ?? currentPrice;
       totalCups += e.cup_count;
       totalAmount += e.cup_count * price;
     });
@@ -202,7 +201,7 @@ const getMonthlyEntries = async (req, res, next) => {
     let totalAmount = 0;
 
     const updatedEntries = entries.map((e) => {
-      const price = e.price_per_cup ?? currentPrice; // ✅ FIX
+      const price = e.price_per_cup ?? currentPrice;
       const amount = e.cup_count * price;
 
       totalCups += e.cup_count;
