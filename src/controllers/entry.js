@@ -177,11 +177,10 @@ const getMonthlySummary = async (req, res, next) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 //   MONTHTLY ENTRIES
 const getMonthlyEntries = async (req, res, next) => {
   try {
-    let { month, year, page = 1 } = req.query;
+    let { month, year } = req.query;
 
     if (!month || !year) {
       return res.status(400).json({ message: "Month & year required" });
@@ -189,20 +188,13 @@ const getMonthlyEntries = async (req, res, next) => {
 
     month = parseInt(month);
     year = parseInt(year);
-    page = parseInt(page) || 1;
-
-    const limit = 10;
-    const skip = (page - 1) * limit;
 
     const priceDoc = await TeaPrice.findOne().sort({ effective_from: -1 });
     const currentPrice = priceDoc ? priceDoc.price_per_cup : 0;
 
-    const totalEntries = await TeaEntry.countDocuments({ month, year });
-
-    const entries = await TeaEntry.find({ month, year })
-      .sort({ date_time: 1 })
-      .skip(skip)
-      .limit(limit);
+    const entries = await TeaEntry.find({ month, year }).sort({
+      date_time: 1,
+    });
 
     let totalCups = 0;
     let totalAmount = 0;
@@ -231,12 +223,10 @@ const getMonthlyEntries = async (req, res, next) => {
     res.json({
       month,
       year,
-      currentPage: page,
-      totalPages: Math.ceil(totalEntries / limit),
-      totalEntries,
       totalCups,
       currentPrice,
       totalAmount,
+      totalEntries: entries.length,
       entries: updatedEntries,
     });
   } catch (error) {
@@ -437,6 +427,8 @@ const exportMonthlyPDF = async (req, res, next) => {
 
     entries.forEach((e, index) => {
       if (rowCount === ROWS_PER_PAGE) {
+        // drawBottomLine(y);
+
         doc.addPage();
         y = 50;
 
