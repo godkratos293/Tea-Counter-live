@@ -96,7 +96,7 @@ const getTodayEntries = async (req, res, next) => {
     const entries = await TeaEntry.find({
       date_time: { $gte: start, $lte: end },
     })
-      .select("-_id -__v -createdAt -updatedAt") // ✅ removed fields
+      .select("-_id -__v -createdAt -updatedAt")
       .sort({ date_time: 1 });
 
     let totalCups = 0;
@@ -209,9 +209,7 @@ const getMonthlyEntries = async (req, res, next) => {
       totalCups += e.cup_count;
       totalAmount += amount;
 
-      const obj = e.toObject(); // ✅ convert to plain object
-
-      // ❌ remove unwanted fields
+      const obj = e.toObject();
       delete obj._id;
       delete obj.__v;
       delete obj.createdAt;
