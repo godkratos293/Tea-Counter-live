@@ -10,12 +10,14 @@ const {
   exportMonthlySummary,
   exportMonthlyEntries,
   exportMonthlyPDF,
+  getMonthlySummary,
 } = require("../controllers/entry");
 
 // Routes
 router.post("/add", addEntry);
 router.get("/today", getTodayEntries);
 router.get("/month", getMonthlyEntries);
+router.get("/monthsummary", getMonthlySummary);
 router.put("/update/:id", updateEntry);
 router.delete("/delete/:id", deleteEntry);
 router.get("/export/pdf", exportMonthlyPDF);

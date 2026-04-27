@@ -3,7 +3,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const connectDB = require("./config/db");
-// const entryRoutes = require("./routes/entryRoutes");
+
 const priceRoutes = require("./routes/priceRoutes");
 const { getDateTimeDetails } = require("./utils/dateHelper");
 const entryRoutes = require("./routes/entry");
@@ -19,7 +19,6 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.send("Tea Counter API Running ");
 });
-// app.use("/api/entries", entryRoutes);
 
 app.use("/api/price", priceRoutes);
 app.use("/api/entries", entryRoutes);

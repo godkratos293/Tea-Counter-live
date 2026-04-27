@@ -12,7 +12,7 @@ const getCurrentMonthYear = () => {
 };
 
 // ADD ENTRY
-const addEntry = async (req, res) => {
+const addEntry = async (req, res, next) => {
   try {
     const { cup_count, date } = req.body;
 
@@ -56,7 +56,15 @@ const addEntry = async (req, res) => {
 
     res.status(201).json({
       message: "Entry added successfully",
-      data: saved,
+      data: {
+        date: saved.date,
+        time: saved.time,
+        price_per_cup: saved.price_per_cup,
+        cup_count: saved.cup_count,
+        total: saved.total,
+        month: saved.month,
+        year: saved.year,
+      },
     });
   } catch (error) {
     console.error(error);
@@ -65,7 +73,7 @@ const addEntry = async (req, res) => {
 };
 
 //  TODAY
-const getTodayEntries = async (req, res) => {
+const getTodayEntries = async (req, res, next) => {
   try {
     const now = new Date();
 
@@ -130,8 +138,8 @@ const getTodayEntries = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-//  MONTHLY
-const getMonthlyEntries = async (req, res) => {
+// MONTHLY SUMMARY
+const getMonthlySummary = async (req, res, next) => {
   try {
     let { month, year } = req.query;
 
@@ -142,6 +150,7 @@ const getMonthlyEntries = async (req, res) => {
     month = parseInt(month);
     year = parseInt(year);
 
+    // latest fallback price
     const priceDoc = await TeaPrice.findOne().sort({ effective_from: -1 });
     const currentPrice = priceDoc ? priceDoc.price_per_cup : 0;
 
@@ -153,8 +162,57 @@ const getMonthlyEntries = async (req, res) => {
     let totalAmount = 0;
 
     entries.forEach((e) => {
+      const price = e.price_per_cup ?? currentPrice; // ✅ FIX
       totalCups += e.cup_count;
-      totalAmount += e.cup_count * currentPrice;
+      totalAmount += e.cup_count * price;
+    });
+
+    res.json({
+      month,
+      year,
+      totalCups,
+      currentPrice,
+      totalAmount,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+//   MONTHTLY ENTRIES
+const getMonthlyEntries = async (req, res, next) => {
+  try {
+    let { month, year } = req.query;
+
+    if (!month || !year) {
+      return res.status(400).json({ message: "Month & year required" });
+    }
+
+    month = parseInt(month);
+    year = parseInt(year);
+
+    // latest fallback price
+    const priceDoc = await TeaPrice.findOne().sort({ effective_from: -1 });
+    const currentPrice = priceDoc ? priceDoc.price_per_cup : 0;
+
+    const entries = await TeaEntry.find({ month, year }).sort({
+      date_time: 1,
+    });
+
+    let totalCups = 0;
+    let totalAmount = 0;
+
+    const updatedEntries = entries.map((e) => {
+      const price = e.price_per_cup ?? currentPrice; // ✅ FIX
+      const amount = e.cup_count * price;
+
+      totalCups += e.cup_count;
+      totalAmount += amount;
+
+      return {
+        ...e._doc,
+        price_per_cup: price,
+        amount,
+      };
     });
 
     res.json({
@@ -164,15 +222,14 @@ const getMonthlyEntries = async (req, res) => {
       currentPrice,
       totalAmount,
       totalEntries: entries.length,
-      entries,
+      entries: updatedEntries,
     });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 // UPDATE
-const updateEntry = async (req, res) => {
+const updateEntry = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { cup_count } = req.body;
@@ -207,7 +264,7 @@ const updateEntry = async (req, res) => {
 };
 
 //  DELETE
-const deleteEntry = async (req, res) => {
+const deleteEntry = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -231,7 +288,7 @@ const deleteEntry = async (req, res) => {
 };
 
 //  PDF
-const exportMonthlyPDF = async (req, res) => {
+const exportMonthlyPDF = async (req, res, next) => {
   try {
     let { month, year } = req.query;
 
@@ -427,4 +484,5 @@ module.exports = {
   updateEntry,
   deleteEntry,
   exportMonthlyPDF,
+  getMonthlySummary,
 };
