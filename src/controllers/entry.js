@@ -198,25 +198,51 @@ const getMonthlyEntries = async (req, res, next) => {
 
     const skip = (page - 1) * limit;
 
+    // Get latest tea price
     const priceDoc = await TeaPrice.findOne().sort({ effective_from: -1 });
     const currentPrice = priceDoc ? priceDoc.price_per_cup : 0;
 
+    // Total number of entries
     const totalEntries = await TeaEntry.countDocuments({ month, year });
 
+    // ✅ Get FULL MONTH totals (not page-wise)
+    const totals = await TeaEntry.aggregate([
+      { $match: { month, year } },
+      {
+        $addFields: {
+          price: { $ifNull: ["$price_per_cup", currentPrice] },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalCups: { $sum: "$cup_count" },
+          totalAmount: {
+            $sum: { $multiply: ["$cup_count", "$price"] },
+          },
+        },
+      },
+    ]);
+
+    const totalCups = totals[0]?.totalCups || 0;
+    const totalAmount = totals[0]?.totalAmount || 0;
+
+    // Get paginated entries
     const entries = await TeaEntry.find({ month, year })
       .sort({ date_time: 1 })
       .skip(skip)
       .limit(limit);
 
-    let totalCups = 0;
-    let totalAmount = 0;
+    // ✅ Page-level totals
+    let pageTotalCups = 0;
+    let pageTotalAmount = 0;
 
     const updatedEntries = entries.map((e) => {
       const price = e.price_per_cup ?? currentPrice;
       const amount = e.cup_count * price;
 
-      totalCups += e.cup_count;
-      totalAmount += amount;
+      pageTotalCups += e.cup_count;
+      pageTotalAmount += amount;
 
       const obj = {
         ...e._doc,
@@ -242,12 +268,13 @@ const getMonthlyEntries = async (req, res, next) => {
       totalEntries,
       totalPages: Math.ceil(totalEntries / limit),
 
-      pageTotalCups: totalCups,
-      pageTotalAmount: totalAmount,
+      totalCups,
+      totalAmount,
 
       entries: updatedEntries,
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Server error" });
   }
 };
