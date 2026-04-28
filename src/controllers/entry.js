@@ -505,7 +505,7 @@ const generateBillPDF = async (req, res, next) => {
         padLeft(amount, 11);
 
       doc.text(row);
-      doc.moveDown(0.3);
+      doc.moveDown(0.7);
 
       index++;
       rowCount++;
