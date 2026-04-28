@@ -6,12 +6,12 @@ const connectDB = require("./config/db");
 const priceRoutes = require("./routes/priceRoutes");
 const { getDateTimeDetails } = require("./utils/dateHelper");
 const entryRoutes = require("./routes/entry");
-const mongoSanitize = require("express-mongo-sanitize");
+// const mongoSanitize = require("express-mongo-sanitize");
 const helmet = require("helmet");
 
 const app = express();
 connectDB();
-app.use(mongoSanitize());
+// app.use(mongoSanitize());
 app.use(helmet());
 const PORT = process.env.PORT;
 
