@@ -182,7 +182,6 @@ const getMonthlySummary = async (req, res, next) => {
   }
 };
 
-// MONTHTLY ENTRIES
 const getMonthlyEntries = async (req, res, next) => {
   try {
     let { month, year, page = 1, limit = 10 } = req.query;
@@ -198,14 +197,11 @@ const getMonthlyEntries = async (req, res, next) => {
 
     const skip = (page - 1) * limit;
 
-    // Get latest tea price
     const priceDoc = await TeaPrice.findOne().sort({ effective_from: -1 });
     const currentPrice = priceDoc ? priceDoc.price_per_cup : 0;
 
-    // Total number of entries
     const totalEntries = await TeaEntry.countDocuments({ month, year });
 
-    // ✅ Get FULL MONTH totals (not page-wise)
     const totals = await TeaEntry.aggregate([
       { $match: { month, year } },
       {
@@ -227,13 +223,11 @@ const getMonthlyEntries = async (req, res, next) => {
     const totalCups = totals[0]?.totalCups || 0;
     const totalAmount = totals[0]?.totalAmount || 0;
 
-    // Get paginated entries
     const entries = await TeaEntry.find({ month, year })
       .sort({ date_time: 1 })
       .skip(skip)
       .limit(limit);
 
-    // ✅ Page-level totals
     let pageTotalCups = 0;
     let pageTotalAmount = 0;
 
@@ -346,8 +340,6 @@ const deleteEntry = async (req, res, next) => {
 };
 
 //  PDF
-
-// Helper to pad text for alignment
 const padRight = (text, length) => {
   return text.toString().padEnd(length, " ");
 };
@@ -383,16 +375,16 @@ const generateBillPDF = async (req, res, next) => {
     const start = new Date(Date.UTC(year, month - 1, 1));
     const end = new Date(Date.UTC(year, month, 0, 23, 59, 59));
 
-    // ✅ FIFO FIX: sort by actual event time (date_time)
+    //FIFO
     const entries = await TeaEntry.find({
       date_time: { $gte: start, $lte: end },
-    }).sort({ date_time: 1 }); // ascending = FIFO
+    }).sort({ date_time: 1 });
 
     if (!entries.length) {
       return res.status(404).json({ message: "No data found" });
     }
 
-    // ================= CALCULATIONS (FIFO ORDER) =================
+    //  CALCULATIONS (FIFO ORDER)
     let totalAmount = 0;
     let totalCups = 0;
 
@@ -417,7 +409,7 @@ const generateBillPDF = async (req, res, next) => {
 
     doc.pipe(res);
 
-    // ================= HEADER =================
+    //  HEADER
     doc.font("Courier-Bold").fontSize(22).text("TEA COUNTER", {
       align: "center",
     });
@@ -432,7 +424,7 @@ const generateBillPDF = async (req, res, next) => {
     doc.text("-----------------------------------------------------------");
     doc.moveDown(1);
 
-    // ================= BILL INFO =================
+    //  INFO
     doc.font("Courier").fontSize(14);
 
     doc.text(`Total Cups       : ${totalCups}`);
@@ -441,7 +433,7 @@ const generateBillPDF = async (req, res, next) => {
 
     doc.moveDown(1);
 
-    // ================= PAGINATION TABLE =================
+    //  PAGINATION TABLE
     let index = 1;
     let rowCount = 0;
     const ROWS_PER_PAGE = 20;
@@ -480,7 +472,6 @@ const generateBillPDF = async (req, res, next) => {
         month: "2-digit",
       });
 
-      // ❗ KEEP UI TIME SAME (createdAt)
       const timeObj = new Date(e.createdAt);
 
       const formattedTime = timeObj
@@ -511,7 +502,7 @@ const generateBillPDF = async (req, res, next) => {
       rowCount++;
     });
 
-    // ================= TOTAL ROW =================
+    // TOTAL ROW
     doc.text("------------------------------------------------------------");
 
     const totalRow =
@@ -524,7 +515,7 @@ const generateBillPDF = async (req, res, next) => {
 
     doc.text("-----------------------------------------------------");
 
-    // ================= FOOTER =================
+    //  FOOTER
     doc.moveDown(1);
     doc.font("Courier").fontSize(14).text("Thank You! Visit Again ", {
       align: "center",
