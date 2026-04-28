@@ -346,7 +346,17 @@ const deleteEntry = async (req, res, next) => {
 };
 
 //  PDF
-const exportMonthlyPDF = async (req, res, next) => {
+
+// Helper to pad text for alignment
+const padRight = (text, length) => {
+  return text.toString().padEnd(length, " ");
+};
+
+const padLeft = (text, length) => {
+  return text.toString().padStart(length, " ");
+};
+
+const generateBillPDF = async (req, res, next) => {
   try {
     let { month, year } = req.query;
 
@@ -366,180 +376,173 @@ const exportMonthlyPDF = async (req, res, next) => {
       });
     }
 
-    const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
-    const end = new Date(Date.UTC(year, month, 0, 23, 59, 59));
-
-    const entries = await TeaEntry.find({
-      date_time: { $gte: start, $lte: end },
-    }).sort({ date_time: 1 });
-
-    let totalCups = 0;
-    let totalAmount = 0;
-    let pricePerCup = 0;
-
-    entries.forEach((e) => {
-      const price = e.price_per_cup || 0;
-      const cups = e.cup_count || 0;
-
-      pricePerCup = price;
-      totalCups += cups;
-      totalAmount += cups * price;
-    });
-
     const monthName = new Date(year, month - 1).toLocaleString("en-IN", {
       month: "long",
-      timeZone: "Asia/Kolkata",
     });
+
+    const start = new Date(Date.UTC(year, month - 1, 1));
+    const end = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+
+    // ✅ FIFO FIX: sort by actual event time (date_time)
+    const entries = await TeaEntry.find({
+      date_time: { $gte: start, $lte: end },
+    }).sort({ date_time: 1 }); // ascending = FIFO
+
+    if (!entries.length) {
+      return res.status(404).json({ message: "No data found" });
+    }
+
+    // ================= CALCULATIONS (FIFO ORDER) =================
+    let totalAmount = 0;
+    let totalCups = 0;
+
+    // Already FIFO because of sort
+    for (const e of entries) {
+      const qty = e.cup_count || 0;
+      const rate = e.price_per_cup || 0;
+
+      totalCups += qty;
+      totalAmount += qty * rate;
+    }
+
+    const currentPrice = entries[entries.length - 1]?.price_per_cup || 0;
 
     const doc = new PDFDocument({ margin: 50 });
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=tea-report-${month}-${year}.pdf`,
+      `attachment; filename=tea-bill-${month}-${year}.pdf`,
     );
 
     doc.pipe(res);
 
-    // HEADER
-    doc
-      .fontSize(22)
-      .fillColor("#000000")
-      .text(`Tea Counter Report (${monthName}, ${year})`, {
-        align: "center",
-      });
+    // ================= HEADER =================
+    doc.font("Courier-Bold").fontSize(22).text("TEA COUNTER", {
+      align: "center",
+    });
 
-    doc.moveDown();
+    doc.moveDown(0.2);
 
-    doc.fillColor("black").fontSize(12);
-    doc.text(`Month: ${monthName} ${year}`);
-    doc.moveDown(0.5);
-    doc.text(`Total Cups: ${totalCups}`);
-    doc.moveDown(0.5);
-    doc.text(`Current Cup Price: ${pricePerCup}`);
-    doc.moveDown(0.5);
+    doc.font("Courier").fontSize(14).text(`(${monthName}-${year})`, {
+      align: "center",
+    });
 
-    doc.fontSize(14).fillColor("#0E9F6E").text(`Total Amount: ${totalAmount}`);
+    doc.moveDown(0.7);
+    doc.text("-----------------------------------------------------------");
+    doc.moveDown(1);
 
-    doc.moveDown(2);
+    // ================= BILL INFO =================
+    doc.font("Courier").fontSize(14);
 
-    const tableTop = doc.y;
+    doc.text(`Total Cups       : ${totalCups}`);
+    doc.text(`Current Price    : ${currentPrice}`);
+    doc.text(`Total Amount     : ${totalAmount}`);
 
-    const col = {
-      sr: 30,
-      date: 80,
-      time: 175,
-      price: 250,
-      cups: 350,
-      total: 435,
-    };
+    doc.moveDown(1);
 
-    const ROWS_PER_PAGE = 20;
+    // ================= PAGINATION TABLE =================
+    let index = 1;
     let rowCount = 0;
+    const ROWS_PER_PAGE = 20;
 
-    const drawHeader = (yPos) => {
-      doc.fillColor("#000000").font("Helvetica-Bold").fontSize(14);
+    const drawTableHeader = () => {
+      doc.font("Courier-Bold").fontSize(15);
 
-      doc.text("#", col.sr + 25, yPos);
-      doc.text("DATE", col.date + 25, yPos);
-      doc.text("TIME", col.time + 25, yPos);
-      doc.text("PER CUP", col.price + 25, yPos);
-      doc.text("CUPS", col.cups + 25, yPos);
-      doc.text("TOTAL", col.total + 40, yPos);
+      const header =
+        padRight("#", 4) +
+        padRight("Date", 12) +
+        padRight("Time", 12) +
+        padLeft("Per Cup", 6) +
+        padLeft("Cups", 9) +
+        padLeft("Total", 10);
 
-      doc
-        .moveTo(30, yPos + 15)
-        .lineTo(550, yPos + 15)
-        .lineWidth(1)
-        .strokeColor("#000000")
-        .stroke();
+      doc.text("--------------------------------------------------------");
+      doc.text(header);
+      doc.text("--------------------------------------------------------");
 
-      doc.font("Helvetica").fillColor("black");
+      doc.font("Courier").fontSize(14);
     };
 
-    drawHeader(tableTop);
+    drawTableHeader();
 
-    let y = tableTop + 25;
-
-    const drawBottomLine = (yPos) => {
-      doc
-        .moveTo(30, yPos)
-        .lineTo(550, yPos)
-        .lineWidth(1)
-        .strokeColor("#000000")
-        .stroke();
-    };
-
-    entries.forEach((e, index) => {
+    entries.forEach((e) => {
       if (rowCount === ROWS_PER_PAGE) {
-        // drawBottomLine(y);
-
         doc.addPage();
-        y = 50;
-
-        drawHeader(y);
-        y += 25;
-
+        drawTableHeader();
         rowCount = 0;
       }
+
       const dateObj = new Date(e.date_time);
 
-      const formattedDate = dateObj
-        .toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-          timeZone: "Asia/Kolkata",
-        })
-        .replace(/ /g, "-");
-
-      const timeObj = new Date(e.createdAt);
-
-      const formattedTime = timeObj.toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-        timeZone: "Asia/Kolkata",
+      const formattedDate = dateObj.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
       });
 
-      const cups = e.cup_count || 0;
-      const price = e.price_per_cup || 0;
-      const total = cups * price;
+      // ❗ KEEP UI TIME SAME (createdAt)
+      const timeObj = new Date(e.createdAt);
 
-      doc.text(String(index + 1), col.sr + 25, y, { width: 30 });
-      doc.text(formattedDate, col.date + 5, y, { width: 90 });
-      doc.text(formattedTime, col.time + 20, y, { width: 70 });
-      doc.text(`${price}`, col.price + 45, y, { width: 50 });
-      doc.text(String(cups), col.cups + 35, y, { width: 40 });
-      doc.text(`${total}`, col.total + 50, y, { width: 60 });
+      const formattedTime = timeObj
+        .toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Kolkata",
+        })
+        .toUpperCase();
 
-      y += 23;
+      const qty = e.cup_count || 0;
+      const rate = e.price_per_cup || 0;
+      const amount = qty * rate;
+
+      const row =
+        padRight(index, 4) +
+        padRight(formattedDate, 12) +
+        padRight(formattedTime, 12) +
+        padLeft(rate, 9) +
+        padLeft(qty, 10) +
+        padLeft(amount, 11);
+
+      doc.text(row);
+      doc.moveDown(0.3);
+
+      index++;
       rowCount++;
     });
 
-    drawBottomLine(y);
+    // ================= TOTAL ROW =================
+    doc.text("------------------------------------------------------------");
 
-    y += 15;
+    const totalRow =
+      padRight("Total", 28) +
+      padLeft("", 6) +
+      padLeft(totalCups, 7) +
+      padLeft(totalAmount, 10);
 
-    doc.font("Helvetica-Bold").fontSize(13);
+    doc.font("Courier-Bold").fontSize(16).text(totalRow);
 
-    doc.text("Total", col.price + 45, y);
-    doc.text(String(totalCups), col.cups + 35, y);
-    doc.text(`${totalAmount}`, col.total + 50, y);
+    doc.text("-----------------------------------------------------");
+
+    // ================= FOOTER =================
+    doc.moveDown(1);
+    doc.font("Courier").fontSize(14).text("Thank You! Visit Again ", {
+      align: "center",
+    });
 
     doc.end();
-  } catch (error) {
-    console.error("PDF Export Error:", error);
-    res.status(500).json({ message: "Server error" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to generate bill" });
   }
 };
-
 module.exports = {
   addEntry,
   getTodayEntries,
   getMonthlyEntries,
   updateEntry,
   deleteEntry,
-  exportMonthlyPDF,
+
   getMonthlySummary,
+  generateBillPDF,
 };

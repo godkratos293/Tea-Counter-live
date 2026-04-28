@@ -9,8 +9,8 @@ const {
   deleteEntry,
   exportMonthlySummary,
   exportMonthlyEntries,
-  exportMonthlyPDF,
   getMonthlySummary,
+  generateBillPDF,
 } = require("../controllers/entry");
 const { generalLimiter, heavyLimiter } = require("../middleware/rateLimiter");
 
@@ -21,6 +21,6 @@ router.get("/month", getMonthlyEntries);
 router.get("/monthsummary", generalLimiter, getMonthlySummary);
 router.put("/update/:id", generalLimiter, updateEntry);
 router.delete("/delete/:id", generalLimiter, deleteEntry);
-router.get("/export/pdf", heavyLimiter, exportMonthlyPDF);
+router.get("/export/pdf", heavyLimiter, generateBillPDF);
 
 module.exports = router;
