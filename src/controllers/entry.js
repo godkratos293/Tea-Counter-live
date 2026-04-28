@@ -248,7 +248,7 @@ const getMonthlyEntries = async (req, res, next) => {
         ...e._doc,
         id: e._id,
         price_per_cup: price,
-        amount,
+        // amount,
       };
 
       delete obj._id;

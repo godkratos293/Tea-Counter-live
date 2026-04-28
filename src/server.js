@@ -3,16 +3,24 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const connectDB = require("./config/db");
-
 const priceRoutes = require("./routes/priceRoutes");
 const { getDateTimeDetails } = require("./utils/dateHelper");
 const entryRoutes = require("./routes/entry");
+const mongoSanitize = require("express-mongo-sanitize");
+const helmet = require("helmet");
 
 const app = express();
 connectDB();
+app.use(mongoSanitize());
+app.use(helmet());
 const PORT = process.env.PORT;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: ["https://tea-counter-frontend.vercel.app"],
+    credentials: true,
+  }),
+);
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.json());
 
