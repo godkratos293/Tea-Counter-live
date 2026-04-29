@@ -182,12 +182,16 @@ const getMonthlySummary = async (req, res, next) => {
   }
 };
 
+// MONTHLY ENTRIES
 const getMonthlyEntries = async (req, res, next) => {
   try {
     let { month, year, page = 1, limit = 10 } = req.query;
 
     if (!month || !year) {
       return res.status(400).json({ message: "Month & year required" });
+    }
+    if (isNaN(month) || isNaN(year)) {
+      return res.status(400).json({ message: "Invalid month or year" });
     }
 
     month = parseInt(month);
@@ -242,7 +246,6 @@ const getMonthlyEntries = async (req, res, next) => {
         ...e._doc,
         id: e._id,
         price_per_cup: price,
-        // amount,
       };
 
       delete obj._id;
@@ -272,6 +275,7 @@ const getMonthlyEntries = async (req, res, next) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 // UPDATE
 const updateEntry = async (req, res, next) => {
   try {
@@ -384,11 +388,9 @@ const generateBillPDF = async (req, res, next) => {
       return res.status(404).json({ message: "No data found" });
     }
 
-    //  CALCULATIONS (FIFO ORDER)
     let totalAmount = 0;
     let totalCups = 0;
 
-    // Already FIFO because of sort
     for (const e of entries) {
       const qty = e.cup_count || 0;
       const rate = e.price_per_cup || 0;
@@ -409,7 +411,6 @@ const generateBillPDF = async (req, res, next) => {
 
     doc.pipe(res);
 
-    //  HEADER
     doc.font("Courier-Bold").fontSize(22).text("TEA COUNTER", {
       align: "center",
     });
@@ -424,7 +425,6 @@ const generateBillPDF = async (req, res, next) => {
     doc.text("-----------------------------------------------------------");
     doc.moveDown(1);
 
-    //  INFO
     doc.font("Courier").fontSize(14);
 
     doc.text(`Total Cups       : ${totalCups}`);
@@ -433,7 +433,6 @@ const generateBillPDF = async (req, res, next) => {
 
     doc.moveDown(1);
 
-    //  PAGINATION TABLE
     let index = 1;
     let rowCount = 0;
     const ROWS_PER_PAGE = 20;
@@ -502,7 +501,6 @@ const generateBillPDF = async (req, res, next) => {
       rowCount++;
     });
 
-    // TOTAL ROW
     doc.text("------------------------------------------------------------");
 
     const totalRow =
@@ -515,7 +513,6 @@ const generateBillPDF = async (req, res, next) => {
 
     doc.text("-----------------------------------------------------");
 
-    //  FOOTER
     doc.moveDown(1);
     doc.font("Courier").fontSize(14).text("Thank You! Visit Again ", {
       align: "center",
@@ -533,7 +530,6 @@ module.exports = {
   getMonthlyEntries,
   updateEntry,
   deleteEntry,
-
   getMonthlySummary,
   generateBillPDF,
 };
